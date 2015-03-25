@@ -23,17 +23,16 @@ function parseData(data) {
  return dataString.substring(firstSpace + 1, dataString.length);
  }*/
 
-function parseFirstString(dataString) {
+/*function parseFirstString(dataString) {
     return dataString.split(' ');
-}
+}*/
 
 function getQueryString(dataString) {
-    console.log('url', dataString);
-    var delimiter = dataString.indexOf('?');
-    return dataString.substring(delimiter + 1, dataString.length);
+    var strArray = dataString.split("?");
+    return strArray.length > 1 ? strArray[1] : '';
 }
 
-function getKeyAndValue(dataString, delimiter) {
+function getKeyValue(dataString, delimiter) {
     var result = dataString.split(delimiter);
     var key = result[0];
     var value = result[1];
@@ -42,42 +41,42 @@ function getKeyAndValue(dataString, delimiter) {
 
 function processData(data) {
     //your code goes here
-
+    var httpObj = {};
     var parameters = data.toString().split('\r\n');
-
-    var firstStringParams = parseFirstString(parameters[0]);
-
+    var firstStringParams = parameters[0].split(' ');
     var method = firstStringParams[0];
     var url = firstStringParams[1];
-    var protocol = firstStringParams[2];
 
-    var urlPage = url.split("?")[0];
+    httpObj.method = method;
+    httpObj.path = url;
 
-    var query;
+    //var urlParts = url.split("?")[0];
 
     if (method === 'GET') {
-        query = getQueryString(url).split("&");
-    }
-    else {
-        query = getQueryString(body).split("&");
-    }
+        var queryArr = getQueryString(url).split('&');
+        if(queryArr.length > 1){
+            httpObj.queryStirng = {};
+            for (var n = 0; n < queryArr.length; n++) {
+                var result = getKeyValue(queryArr[n], "=");
+                httpObj.queryStirng[result.key] = result.value;
+            }
+        }
 
-    var queryParams = {};
-
-    for (n = 0; n < query.length; n++) {
-        var result = getKeyAndValue(query[n], "=");
-        queryParams[result.key] = result.value;
-        //queryParams[getKey(query[n], "=")] = getValue(query[n], "=");
     }
 
-
-    var i = 1;
-    var headers = {};
+    httpObj.headers = {};
     var body = {};
-    var parsingPart = 'header';
+    //var parsingPart = 'header';
 
-    for (var i = 0; i < parameters.length; i++) {
-        var result = getKeyAndValue(parameters[i], ": ");
+    for(var i = 1; i < parameters[i]; i++){
+        if(parameters[i] === ''){
+            break;
+        }
+        var headerObj = getKeyValue(parameters[i], ": ");
+        httpObj.headers[headerObj[key]] = headerObj.value;
+    }
+    /*for (var i = 1; i < parameters.length; i++) {
+        var result = getKeyValue(parameters[i], ": ");
         if (parameters[i] === '') {
             parsingPart = 'body';
             continue;
@@ -88,20 +87,21 @@ function processData(data) {
         else {
             body[result.key] = result.value;
         }
-    }
+    }*/
 
-    console.log(parameters);
+    /*console.log(parameters); */
+    console.log(httpObj);
     console.log(data.toString());
 
     var message = 'test';
 
-    if ((urlPage === '/sum-get') || (urlPage === '/sum-get.html')) {
+    /*if ((urlParts === '/sum-get') || (urlParts === '/sum-get.html')) {
         message = parseInt(queryParams.a) + parseInt(queryParams.b);
     }
 
-    if ((urlPage === '/sum-post') || (urlPage === '/sum-post.html')) {
+    if ((urlParts === '/sum-post') || (urlParts === '/sum-post.html')) {
         message = parseInt(queryParams.a) + parseInt(queryParams.b);
-    }
+    }*/
 
     this.end(message.toString());
 }
