@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
-<head lang="en">
-  <meta charset="UTF-8">
-  <title></title>
-</head>
-<body>
-
-<form method="POST" action="http://localhost:8080/sum-post.html">
-  <label>A</label>
-  <input name="a" type="text"/>
-  <label>B</label>
-  <input name="b" type="text"/>
-  <input type="submit" name="Sum"/>
-</form>
-</body>
+    <head lang="en">
+        <meta charset="UTF-8">
+        <title></title>
+    </head>
+    <body>
+        <form method="post" action="http://localhost:8080/sum-post.html" enctype="multipart/form-data">
+            <label>A</label>
+            <input name="a" type="text"/>
+            <label>B</label>
+            <input name="b" type="text"/>
+            <label>File</label>
+            <input class="text" type="file" name="file"/>
+            <input type="submit" value="Submit"/>
+        </form>
+    </body>
 </html>

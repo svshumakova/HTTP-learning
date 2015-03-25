@@ -12,21 +12,6 @@ function parseData(data) {
     //your code goes here
 }
 
-/*function getMethod(dataString) {
- var firstSpace = dataString.indexOf(' ');
- return dataString.substring(0, firstSpace);
- }
-
- function getUrl(dataString) {
- var firstSpace = dataString.indexOf(' ');
- var secondSpace = dataString.indexOf(' ');
- return dataString.substring(firstSpace + 1, dataString.length);
- }*/
-
-/*function parseFirstString(dataString) {
-    return dataString.split(' ');
-}*/
-
 function getQueryString(dataString) {
     var strArray = dataString.split("?");
     return strArray.length > 1 ? strArray[1] : '';
@@ -38,70 +23,74 @@ function getKeyValue(dataString, delimiter) {
     var value = result[1];
     return {'key': key, 'value': value};
 }
+function calcSum(queryString){
+    var sum = 0;
+    for(var key in queryString){
+        sum += +queryString[key];
+    }
+    return sum;
+}
+function setQueries(arr,obj){
+    for (var n = 0; n < arr.length; n++) {
+        var result = getKeyValue(arr[n], "=");
+        obj[result.key] = result.value;
+    }
+}
+function encodeMultipart(body, boundary){
 
+}
 function processData(data) {
     //your code goes here
     var httpObj = {};
     var parameters = data.toString().split('\r\n');
     var firstStringParams = parameters[0].split(' ');
-    var method = firstStringParams[0];
-    var url = firstStringParams[1];
 
-    httpObj.method = method;
-    httpObj.path = url;
+    httpObj.method = firstStringParams[0];
+    httpObj.path = firstStringParams[1];
 
-    //var urlParts = url.split("?")[0];
-
-    if (method === 'GET') {
-        var queryArr = getQueryString(url).split('&');
+    //Get queryString
+    if (httpObj.method === 'GET') {
+        var queryArr = getQueryString(httpObj.path).split('&');
         if(queryArr.length > 1){
             httpObj.queryStirng = {};
-            for (var n = 0; n < queryArr.length; n++) {
-                var result = getKeyValue(queryArr[n], "=");
-                httpObj.queryStirng[result.key] = result.value;
-            }
+            setQueries(queryArr,httpObj.queryStirng);
         }
-
     }
-
+    //Get headers
     httpObj.headers = {};
-    var body = {};
-    //var parsingPart = 'header';
-
-    for(var i = 1; i < parameters[i]; i++){
+    for(var i = 1; i < parameters[i].length; i++){
         if(parameters[i] === ''){
             break;
         }
         var headerObj = getKeyValue(parameters[i], ": ");
-        httpObj.headers[headerObj[key]] = headerObj.value;
+        httpObj.headers[headerObj.key] = headerObj.value;
     }
-    /*for (var i = 1; i < parameters.length; i++) {
-        var result = getKeyValue(parameters[i], ": ");
-        if (parameters[i] === '') {
-            parsingPart = 'body';
-            continue;
-        }
-        if (parsingPart === 'header') {
-            headers[result.key] = result.value;
-        }
-        else {
-            body[result.key] = result.value;
-        }
-    }*/
 
-    /*console.log(parameters); */
-    console.log(httpObj);
-    console.log(data.toString());
-
+    //Get body
+    //httpObj.body = parameters[parameters.length-1];
     var message = 'test';
 
-    /*if ((urlParts === '/sum-get') || (urlParts === '/sum-get.html')) {
-        message = parseInt(queryParams.a) + parseInt(queryParams.b);
+    if(httpObj.method === "GET" && httpObj.queryStirng){
+        httpObj.body = parameters[parameters.length-1];
+        message = calcSum(httpObj.queryStirng);
     }
 
-    if ((urlParts === '/sum-post') || (urlParts === '/sum-post.html')) {
-        message = parseInt(queryParams.a) + parseInt(queryParams.b);
-    }*/
+    if(httpObj.method === "POST"){
+        var contentTypeArr = data.headers['Content-Type'].split(' ');
+        var contentType = contentTypeArr[0];
+        if(contentType === "multipart/form-data" && contentTypeArr.length > 1 && httpObj.body){
+            var boundary = contentTypeArr[1];
+            httpObj.bodyQueryStirng = encodeMultipart(httpObj.body,boundary);
+        }
+        if(contentType === "application/x-www-form-urlencoded" && httpObj.body){
+            httpObj.body = {};
+            setQueries(httpObj.body.split('&'),httpObj.body);
+            message = calcSum(httpObj.body);
+        }
+    }
+
+    console.log(httpObj);
+    console.log(data.toString());
 
     this.end(message.toString());
 }
