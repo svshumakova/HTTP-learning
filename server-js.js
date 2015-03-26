@@ -27,7 +27,6 @@ function getKeyValue(dataString, delimiter) {
 function calcSum(queryString){
     var sum = 0;
     for(var key in queryString){
-        console.log(key);
         var value = +queryString[key];
         if(isNumeric(value)){
             sum += value;
@@ -54,21 +53,27 @@ function encodeMultipart(body,boundary){
     var queriesObj = {};
     var tempArr = body.split("--" + boundary);
     tempArr = tempArr.slice(1,tempArr.length-1);
+    var conteinFiles = false;
+    var files = [];
     for(var i = 0; i < tempArr.length; i++){
         var dataStr = tempArr[i].slice("\r\nContent-Disposition: form-data; ".length);
         var name = getText(dataStr, 'name=\"', '\"')
-        var isFile = dataStr.indexOf('filename=\"') !== -1;
-        if(!isFile){
+        var conteinFiles = dataStr.indexOf('filename=\"') !== -1;
+        if(!conteinFiles){
             var val = dataStr.split("\r\n")[2];
             queriesObj[name] = val;
         }else{
-            queriesObj[name] = {};
-            queriesObj[name].fileName = getText(dataStr,'filename=\"','\"');
-            queriesObj[name].contentType = getText(dataStr,'Content-Type: ', '\r');
+            file = {};
+            file.fileName = getText(dataStr,'filename=\"','\"');
+            file.contentType = getText(dataStr,'Content-Type: ', '\r');
             var contentDivider = '\r\n\r\n';
             var contentStartIndex = dataStr.indexOf(contentDivider) +  contentDivider.length;
-            queriesObj[name].fileContent = dataStr.substring(contentStartIndex, dataStr.length - 2);
+            file.fileContent = dataStr.substring(contentStartIndex, dataStr.length - 2);
+            files.push(file);
         }
+    }
+    if(conteinFiles && files.length > 0){
+        queriesObj.files = files;
     }
     return queriesObj;
 
@@ -122,6 +127,20 @@ function processData(data) {
             var boundary = contentTypeArr[1].slice(9);
             httpObj.body = encodeMultipart(body,boundary);
             message = calcSum(httpObj.body);
+
+            var fs = require('fs');
+            if(httpObj.body.files){
+                console.log(httpObj.body.files);
+                httpObj.body.files.forEach(function(el){
+                    fs.writeFile(el.fileName, el.fileContent, function (err) {
+                        if (err){
+                            console.log(err);
+                            throw err;
+                        }
+                        console.log('It\'s saved!');
+                    });
+                });
+            }
         }
         if(contentType === "application/x-www-form-urlencoded"){
             httpObj.body = {};
@@ -132,7 +151,6 @@ function processData(data) {
 
     console.log(httpObj);
     console.log(data.toString());
-
     this.end(message.toString());
 }
 
