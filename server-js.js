@@ -10,6 +10,7 @@ function processError() {
 
 function parseData(data) {
     //your code goes here
+
 }
 
 function getQueryString(dataString) {
@@ -26,9 +27,16 @@ function getKeyValue(dataString, delimiter) {
 function calcSum(queryString){
     var sum = 0;
     for(var key in queryString){
-        sum += +queryString[key];
+        console.log(key);
+        var value = +queryString[key];
+        if(isNumeric(value)){
+            sum += value;
+        }
     }
     return sum;
+}
+function isNumeric(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
 }
 function setQueries(arr,obj){
     for (var n = 0; n < arr.length; n++) {
@@ -36,14 +44,40 @@ function setQueries(arr,obj){
         obj[result.key] = result.value;
     }
 }
-function encodeMultipart(body, boundary){
+function getText(string, substr, endChar){
+    var txtStart = string.indexOf(substr) + substr.length;
+    var txtEnd = string.indexOf(endChar, txtStart);
+    var text = string.substring(txtStart, txtEnd);
+    return text;
+}
+function encodeMultipart(body,boundary){
+    var queriesObj = {};
+    var tempArr = body.split("--" + boundary);
+    tempArr = tempArr.slice(1,tempArr.length-1);
+    for(var i = 0; i < tempArr.length; i++){
+        var dataStr = tempArr[i].slice("\r\nContent-Disposition: form-data; ".length);
+        var name = getText(dataStr, 'name=\"', '\"')
+        var isFile = dataStr.indexOf('filename=\"') !== -1;
+        if(!isFile){
+            var val = dataStr.split("\r\n")[2];
+            queriesObj[name] = val;
+        }else{
+            queriesObj[name] = {};
+            queriesObj[name].fileName = getText(dataStr,'filename=\"','\"');
+            queriesObj[name].contentType = getText(dataStr,'Content-Type: ', '\r');
+            var contentDivider = '\r\n\r\n';
+            var contentStartIndex = dataStr.indexOf(contentDivider) +  contentDivider.length;
+            queriesObj[name].fileContent = dataStr.substring(contentStartIndex, dataStr.length - 2);
+        }
+    }
+    return queriesObj;
 
 }
 function processData(data) {
     //your code goes here
     var httpObj = {};
-    var parameters = data.toString().split('\r\n');
-    var firstStringParams = parameters[0].split(' ');
+    var httpParams = data.toString().split('\r\n');
+    var firstStringParams = httpParams[0].split(' ');
 
     httpObj.method = firstStringParams[0];
     httpObj.path = firstStringParams[1];
@@ -58,33 +92,40 @@ function processData(data) {
     }
     //Get headers
     httpObj.headers = {};
-    for(var i = 1; i < parameters[i].length; i++){
-        if(parameters[i] === ''){
+    for(var i = 1; i < httpParams.length; i++){
+        if(httpParams[i] === ''){
             break;
         }
-        var headerObj = getKeyValue(parameters[i], ": ");
+        var headerObj = getKeyValue(httpParams[i], ": ");
         httpObj.headers[headerObj.key] = headerObj.value;
     }
 
     //Get body
-    //httpObj.body = parameters[parameters.length-1];
+    if(httpObj.headers['Content-Type']){
+        var contentTypeArr = httpObj.headers['Content-Type'].split('; ');
+        var contentType = contentTypeArr[0];
+    }
+    var bodyDivider = "\n\r\n";
+    var bodyIndex = data.toString().indexOf(bodyDivider) + bodyDivider.length;
+    var body = data.toString().slice(bodyIndex);
     var message = 'test';
 
-    if(httpObj.method === "GET" && httpObj.queryStirng){
-        httpObj.body = parameters[parameters.length-1];
-        message = calcSum(httpObj.queryStirng);
+    if(httpObj.method === "GET"){
+        httpObj.body = body.toString();
+        if(httpObj.queryStirng){
+            message = calcSum(httpObj.queryStirng);
+        }
     }
 
     if(httpObj.method === "POST"){
-        var contentTypeArr = data.headers['Content-Type'].split(' ');
-        var contentType = contentTypeArr[0];
-        if(contentType === "multipart/form-data" && contentTypeArr.length > 1 && httpObj.body){
-            var boundary = contentTypeArr[1];
-            httpObj.bodyQueryStirng = encodeMultipart(httpObj.body,boundary);
+        if(contentType === "multipart/form-data" && contentTypeArr.length > 1){
+            var boundary = contentTypeArr[1].slice(9);
+            httpObj.body = encodeMultipart(body,boundary);
+            message = calcSum(httpObj.body);
         }
-        if(contentType === "application/x-www-form-urlencoded" && httpObj.body){
+        if(contentType === "application/x-www-form-urlencoded"){
             httpObj.body = {};
-            setQueries(httpObj.body.split('&'),httpObj.body);
+            setQueries(body.split('&'),httpObj.body);
             message = calcSum(httpObj.body);
         }
     }
