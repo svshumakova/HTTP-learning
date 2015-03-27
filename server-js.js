@@ -37,6 +37,15 @@ function calcSum(queryString){
 function isNumeric(n) {
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
+function isObjEmpty(obj){
+    var isEmpty = true;
+    for(var key in obj){
+        if(obj.hasOwnProperty(key)){
+            isEmpty = false;
+        }
+    }
+    return isEmpty;
+}
 function setQueries(arr,obj){
     for (var n = 0; n < arr.length; n++) {
         var result = getKeyValue(arr[n], "=");
@@ -63,7 +72,7 @@ function encodeMultipart(body,boundary){
             var val = dataStr.split("\r\n")[2];
             queriesObj[name] = val;
         }else{
-            file = {};
+            var file = {};
             file.fileName = getText(dataStr,'filename=\"','\"');
             file.contentType = getText(dataStr,'Content-Type: ', '\r');
             var contentDivider = '\r\n\r\n';
@@ -78,23 +87,22 @@ function encodeMultipart(body,boundary){
     return queriesObj;
 
 }
+function getBody(dataStr){
+    var bodyDivider = "\n\r\n";
+    var bodyIndex = dataStr.indexOf(bodyDivider) + bodyDivider.length;
+    var body = dataStr.toString().slice(bodyIndex);
+    return body;
+}
 function processData(data) {
     //your code goes here
     var httpObj = {};
-    var httpParams = data.toString().split('\r\n');
+    var dataStr = data.toString();
+    var httpParams = dataStr.split('\r\n');
     var firstStringParams = httpParams[0].split(' ');
 
     httpObj.method = firstStringParams[0];
     httpObj.path = firstStringParams[1];
 
-    //Get queryString
-    if (httpObj.method === 'GET') {
-        var queryArr = getQueryString(httpObj.path).split('&');
-        if(queryArr.length > 1){
-            httpObj.queryStirng = {};
-            setQueries(queryArr,httpObj.queryStirng);
-        }
-    }
     //Get headers
     httpObj.headers = {};
     for(var i = 1; i < httpParams.length; i++){
@@ -105,33 +113,31 @@ function processData(data) {
         httpObj.headers[headerObj.key] = headerObj.value;
     }
 
-    //Get body
-    if(httpObj.headers['Content-Type']){
-        var contentTypeArr = httpObj.headers['Content-Type'].split('; ');
-        var contentType = contentTypeArr[0];
-    }
-    var bodyDivider = "\n\r\n";
-    var bodyIndex = data.toString().indexOf(bodyDivider) + bodyDivider.length;
-    var body = data.toString().slice(bodyIndex);
-    var message = 'test';
-
-    if(httpObj.method === "GET"){
-        httpObj.body = body.toString();
-        if(httpObj.queryStirng){
-            message = calcSum(httpObj.queryStirng);
+    var message = "test";
+    //Get Data
+    httpObj.data={};
+    if (httpObj.method === 'GET') {
+        var queryArr = getQueryString(httpObj.path).split('&');
+        if(queryArr.length > 1){
+            setQueries(queryArr,httpObj.data);
         }
     }
 
     if(httpObj.method === "POST"){
+        var bodyDivider = "\n\r\n";
+        var bodyIndex = dataStr.indexOf(bodyDivider) + bodyDivider.length;
+        var body = dataStr.slice(bodyIndex);
+        var body = getBody(dataStr);
+        if(httpObj.headers['Content-Type']){
+            var contentTypeArr = httpObj.headers['Content-Type'].split('; ');
+            var contentType = contentTypeArr[0];
+        }
         if(contentType === "multipart/form-data" && contentTypeArr.length > 1){
             var boundary = contentTypeArr[1].slice(9);
-            httpObj.body = encodeMultipart(body,boundary);
-            message = calcSum(httpObj.body);
-
+            httpObj.data = encodeMultipart(body,boundary);
             var fs = require('fs');
-            if(httpObj.body.files){
-                console.log(httpObj.body.files);
-                httpObj.body.files.forEach(function(el){
+            if(httpObj.data.files){
+                httpObj.data.files.forEach(function(el){
                     fs.writeFile(el.fileName, el.fileContent, function (err) {
                         if (err){
                             console.log(err);
@@ -143,14 +149,18 @@ function processData(data) {
             }
         }
         if(contentType === "application/x-www-form-urlencoded"){
-            httpObj.body = {};
-            setQueries(body.split('&'),httpObj.body);
-            message = calcSum(httpObj.body);
+            setQueries(body.split('&'),httpObj.data);
         }
     }
 
+    var message = "test";
+    if(!isObjEmpty(httpObj.data)){
+        message = calcSum(httpObj.data);
+    }
+
     console.log(httpObj);
-    console.log(data.toString());
+    //console.log(data);
+    console.log(dataStr);
     this.end(message.toString());
 }
 
